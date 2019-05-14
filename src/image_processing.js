@@ -33,7 +33,7 @@ function laplace_variance(img) {
 }
 
 function resize_300_dpi(img) {
-  let interpoletionMethod;
+  //let interpoletionMethod;
   let img_dst = new cv.Mat();
   let dsize = new cv.Size(1014, 636);
   let h_dpi = img.size().height / H_INCHES;
