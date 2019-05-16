@@ -1,6 +1,6 @@
 import cv from "opencv.js";
 
-const FPS = 30;
+const FPS = 60;
 const LOW_BRIGHTNESS_LIMIT = 80;
 const HIGH_BRIGHTNESS_LIMIT = 200;
 
@@ -45,6 +45,23 @@ function takeSnapshot() {
     // Make a copy of the current frame in the video on the canvas.
     context.drawImage(video, 0, 0, width, height);
 
+    var photo_focus = document.getElementById("photo-focus");
+    let srcFinal = cv.imread("canvasPhoto");
+    let dst = new cv.Mat();
+    // You can try more different parameters
+    //let rect = new cv.Rect(100, 100, 200, 200);
+
+    let rect = new cv.Rect(
+      photo_focus.getBoundingClientRect().x,
+      photo_focus.getBoundingClientRect().y,
+      350,
+      220
+    );
+    dst = srcFinal.roi(rect);
+    cv.imshow("canvasPhoto", dst);
+    src.delete();
+    dst.delete();
+
     // Turn the canvas image into a dataURL that can be used as a src for our photo.
     return hidden_canvas.toDataURL("image/png");
   }
@@ -56,18 +73,23 @@ let reducedMap;
 
 navigator.mediaDevices
   .getUserMedia({
-    video: true /*{
+    video: {
       facingMode: { exact: "environment" }
-    }*/,
+    },
     audio: false
   })
   .then(function(stream) {
     let video = document.getElementById("videoInput");
     video.srcObject = stream;
     video.play();
+    video.height = video.clientHeight;
+    video.width = video.clientWidth;
+
+    src = new cv.Mat(video.height, video.width, cv.CV_8UC4);
+    cap = new cv.VideoCapture(video);
 
     let { width, height } = stream.getTracks()[0].getSettings();
-    let pointCount = width * height; //video.height * video.width;
+    let pointCount = video.height * video.width;
     console.log(`${width}x${height}`);
 
     //video.width = width;
@@ -75,10 +97,8 @@ navigator.mediaDevices
 
     function processVideo() {
       try {
-        src = new cv.Mat(height, width, cv.CV_8UC4);
         //let begin = Date.now();
         writeDateTime();
-        cap = new cv.VideoCapture(document.getElementById("videoInput"));
 
         cap.read(src);
         reducedMap = new cv.Mat(height / 2, width / 2, cv.CV_8UC4);
@@ -90,7 +110,7 @@ navigator.mediaDevices
           0,
           cv.INTER_CUBIC // interpolation method
         );
-        src.delete();
+        //src.delete();
 
         let brightness = calculateBrightness(
           reducedMap,
@@ -153,13 +173,13 @@ function calculateBrightness(src, pointCount) {
     for (col = 0; col < dstBrightness.cols; col = col + 10) {
       brightness = brightness + rowMat.col(col).data[1];
     }
-    rowMat.delete();
   }
   dstBrightness.delete();
 
-  brightness = brightness / pointCount;
+  brightness = (brightness * 100) / pointCount;
   return brightness;
 }
+
 var dstBlur;
 var temp;
 function blurInput(src) {
