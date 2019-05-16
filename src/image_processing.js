@@ -19,6 +19,21 @@ export function blur(inputElement, outputElement) {
   return lap_variance;
 }
 
+export function blurInput(inputElement) {
+  writeDateTime();
+
+  var dst = new cv.Mat();
+  let src = cv.imread(inputElement);
+  //let src = cv.matFromImageData(e.target.result);
+
+  cv.cvtColor(src, dst, cv.COLOR_BGRA2GRAY);
+  let temp = resize_300_dpi(dst);
+  let lap_variance = laplace_variance(temp);
+  //cv.imshow(outputElement, dst);
+
+  return lap_variance;
+}
+
 function laplace_variance(img) {
   let lap_var;
   let lap = new cv.Mat();
