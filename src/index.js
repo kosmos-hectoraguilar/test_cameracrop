@@ -1,6 +1,6 @@
 import cv from "opencv.js";
 
-const FPS = 60;
+const FPS = 5;
 const LOW_BRIGHTNESS_LIMIT = 80;
 const HIGH_BRIGHTNESS_LIMIT = 200;
 
@@ -51,11 +51,19 @@ function takeSnapshot() {
     // You can try more different parameters
     //let rect = new cv.Rect(100, 100, 200, 200);
 
+    let ratio = Math.max(
+      video.videoWidth / video.width,
+      video.videoHeight / video.height
+    );
+
+    var reductionX = (video.width * ratio - video.videoWidth) / 2;
+    var reductionY = (video.height * ratio - video.videoHeight) / 2;
+
     let rect = new cv.Rect(
-      photo_focus.getBoundingClientRect().x,
-      photo_focus.getBoundingClientRect().y,
-      350,
-      220
+      photo_focus.getBoundingClientRect().x * ratio - reductionX,
+      photo_focus.getBoundingClientRect().y * ratio - reductionY,
+      350 * ratio,
+      220 * ratio
     );
     dst = srcFinal.roi(rect);
     cv.imshow("canvasPhoto", dst);
@@ -70,85 +78,88 @@ function takeSnapshot() {
 let cap;
 let src;
 let reducedMap;
+if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+  navigator.mediaDevices
+    .getUserMedia({
+      video: {
+        facingMode: { exact: "environment" }
+      } /*{
+        width: { ideal: 1280 },
+        height: { ideal: 1024 }
+      }*/,
+      audio: false
+    })
+    .then(function(stream) {
+      let video = document.getElementById("videoInput");
+      video.srcObject = stream;
+      video.play();
+      video.height = document.body.offsetHeight;
+      video.width = document.body.offsetWidth;
 
-navigator.mediaDevices
-  .getUserMedia({
-    video: {
-      facingMode: { exact: "environment" }
-    },
-    audio: false
-  })
-  .then(function(stream) {
-    let video = document.getElementById("videoInput");
-    video.srcObject = stream;
-    video.play();
-    video.height = video.clientHeight;
-    video.width = video.clientWidth;
+      src = new cv.Mat(video.height, video.width, cv.CV_8UC4);
+      cap = new cv.VideoCapture(video);
 
-    src = new cv.Mat(video.height, video.width, cv.CV_8UC4);
-    cap = new cv.VideoCapture(video);
+      let { width, height } = stream.getTracks()[0].getSettings();
+      let pointCount = video.height * video.width;
+      console.log(`${width}x${height}`);
 
-    let { width, height } = stream.getTracks()[0].getSettings();
-    let pointCount = video.height * video.width;
-    console.log(`${width}x${height}`);
+      //video.width = width;
+      //video.height = height;
 
-    //video.width = width;
-    //video.height = height;
+      function processVideo() {
+        try {
+          //let begin = Date.now();
+          writeDateTime();
 
-    function processVideo() {
-      try {
-        //let begin = Date.now();
-        writeDateTime();
+          cap.read(src);
+          reducedMap = new cv.Mat(height / 2, width / 2, cv.CV_8UC4);
+          cv.resize(
+            src, // input image
+            reducedMap, // result image
+            reducedMap.size(), // new dimensions
+            0,
+            0,
+            cv.INTER_CUBIC // interpolation method
+          );
+          //src.delete();
 
-        cap.read(src);
-        reducedMap = new cv.Mat(height / 2, width / 2, cv.CV_8UC4);
-        cv.resize(
-          src, // input image
-          reducedMap, // result image
-          reducedMap.size(), // new dimensions
-          0,
-          0,
-          cv.INTER_CUBIC // interpolation method
-        );
-        //src.delete();
+          let brightness = calculateBrightness(
+            reducedMap,
+            (width / 2) * (height / 2)
+          );
+          let laplace = blurInput(reducedMap);
+          reducedMap.delete();
 
-        let brightness = calculateBrightness(
-          reducedMap,
-          (width / 2) * (height / 2)
-        );
-        let laplace = blurInput(reducedMap);
-        reducedMap.delete();
+          let alert = document.getElementById("alert-camera");
+          var element = document.getElementById("photo-button");
 
-        let alert = document.getElementById("alert-camera");
-        var element = document.getElementById("photo-button");
-
-        if (
-          brightness > HIGH_BRIGHTNESS_LIMIT ||
-          brightness < LOW_BRIGHTNESS_LIMIT ||
-          laplace < 80
-        ) {
-          alert.style.visibility = "visible";
-          document.getElementById("alert-text").innerHTML =
-            "variance:" + laplace + " - brightness:" + brightness;
-
-          element.classList.add(".icon-deseable");
-        } else {
-          alert.style.visibility = "visible";
-          document.getElementById("alert-text").innerHTML =
-            "variance:" + laplace + " - brightness:" + brightness;
-
-          element.classList.remove(".icon-deseable");
+          if (
+            brightness > HIGH_BRIGHTNESS_LIMIT ||
+            brightness < LOW_BRIGHTNESS_LIMIT //||
+            //laplace < 80
+          ) {
+            alert.style.visibility = "visible";
+            element.classList.add(".icon-deseable");
+            document.getElementById("alert-text").innerHTML =
+              "variance:" + laplace + " - brightness:" + brightness;
+          } else {
+            alert.style.visibility = "hidden";
+            element.classList.remove(".icon-deseable");
+          }
+          setTimeout(processVideo, 1000 / FPS);
+        } catch (err) {
+          console.log("An error occurred! " + err);
+          setTimeout(processVideo, 1000 / FPS);
         }
-        setTimeout(processVideo, 1000 / FPS);
-      } catch (err) {
-        console.log("An error occurred! " + err);
-        setTimeout(processVideo, 1000 / FPS);
       }
-    }
-    let delay = 1000 / FPS;
-    //setInterval(processVideo, delay);
-    setTimeout(processVideo, 1000 / FPS);
-  });
+      let delay = 1000 / FPS;
+      //setInterval(processVideo, delay);
+      setTimeout(processVideo, 1000 / FPS);
+    });
+} else {
+  document.getElementById("alert-text").innerHTML = "Navegador no soportado";
+  alert.style.visibility = "visible";
+}
 
 /**
  * Convert the RGB matrix into a HLS one, move into all rows and cols and sum the L component of each

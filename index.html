@@ -19,11 +19,12 @@
 	<link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.8.2/css/all.css" integrity="sha384-oS3vJWv+0UjzBfQzYUhtDYW+Pj2yciDJxpsK1OYPAYjqT085Qq/1cq5FLXAZQ7Ay"
 	 crossorigin="anonymous">
 
+	<script src="https://browser.sentry-cdn.com/5.2.1/bundle.min.js" crossorigin="anonymous"></script>
+
 
 </head>
 
 <body>
-	<canvas id="canvasPhoto" height="0" width="0"></canvas>
 	<!--<div class="container-flash"></div>-->
 	<div class="container-fluid">
 		<div class="display-flex">
@@ -71,10 +72,12 @@
 				</figure>
 			</div>
 		</div>
-
+		<canvas id="canvasPhoto" height="0" width="0"></canvas>
 	</div>
 
 	<script type="text/javascript">
+		Sentry.init({ dsn: 'https://f4500ef0a9c34b06b9ff51707a470d1b@sentry.io/1462159' });
+	
 		$(document).ready(function() {
 		  function reorient(e) {
 		    var portrait = window.orientation % 180 == 0;
@@ -83,7 +86,7 @@
 		  window.onorientationchange = reorient;
 		  window.setTimeout(reorient, 0);
 		});
-</script>
+	</script>
 
 
 
