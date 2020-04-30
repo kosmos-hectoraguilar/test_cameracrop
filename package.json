@@ -8,7 +8,7 @@
     "build": "parcel build index.html"
   },
   "dependencies": {
-    "jquery": "3.4.0",
+    "jquery": "3.5.0",
     "opencv.js": "1.2.1"
   },
   "devDependencies": {
